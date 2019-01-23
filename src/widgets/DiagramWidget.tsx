@@ -80,6 +80,8 @@ export class DiagramWidget extends BaseWidget<DiagramProps, DiagramState> {
 		window.removeEventListener("keyup", this.onKeyUpPointer);
 		window.removeEventListener("mouseUp", this.onMouseUp);
 		window.removeEventListener("mouseMove", this.onMouseMove);
+		window.removeEventListener("touchend", this.onMouseUp);
+		window.removeEventListener("touchmove", this.onMouseMove);
 	}
 
 	componentWillReceiveProps(nextProps: DiagramProps) {
@@ -212,7 +214,7 @@ export class DiagramWidget extends BaseWidget<DiagramProps, DiagramState> {
 		var diagramModel = diagramEngine.getDiagramModel();
 		//select items so draw a bounding box
 		if (this.state.action instanceof SelectingAction) {
-			var relative = diagramEngine.getRelativePoint(event.clientX, event.clientY);
+			var relative = diagramEngine.getRelativePoint((event.clientX || event.touches[0].clientX), (event.clientY || event.touches[0].clientY));
 
 			_.forEach(diagramModel.getNodes(), node => {
 				if ((this.state.action as SelectingAction).containsElement(node.x, node.y, diagramModel)) {
@@ -242,8 +244,8 @@ export class DiagramWidget extends BaseWidget<DiagramProps, DiagramState> {
 			this.setState({ action: this.state.action });
 			return;
 		} else if (this.state.action instanceof MoveItemsAction) {
-			let amountX = event.clientX - this.state.action.mouseX;
-			let amountY = event.clientY - this.state.action.mouseY;
+			let amountX = (event.clientX || event.touches[0].clientX) - this.state.action.mouseX;
+			let amountY = (event.clientY || event.touches[0].clientY) - this.state.action.mouseY;
 			let amountZoom = diagramModel.getZoomLevel() / 100;
 
 			_.forEach(this.state.action.selectionModels, model => {
@@ -288,8 +290,8 @@ export class DiagramWidget extends BaseWidget<DiagramProps, DiagramState> {
 			//translate the actual canvas
 			if (this.props.allowCanvasTranslation) {
 				diagramModel.setOffset(
-					this.state.action.initialOffsetX + (event.clientX - this.state.action.mouseX),
-					this.state.action.initialOffsetY + (event.clientY - this.state.action.mouseY)
+					this.state.action.initialOffsetX + ((event.clientX || event.touches[0].clientX) - this.state.action.mouseX),
+					this.state.action.initialOffsetY + ((event.clientY || event.touches[0].clientY) - this.state.action.mouseY)
 				);
 				this.fireAction();
 				this.forceUpdate();
@@ -532,6 +534,64 @@ export class DiagramWidget extends BaseWidget<DiagramProps, DiagramState> {
 					this.state.document.addEventListener("mousemove", this.onMouseMove);
 					this.state.document.addEventListener("mouseup", this.onMouseUp);
 				}}
+				onTouchStart={event => {
+					if (event.nativeEvent.which === 3) return;
+					this.setState({ ...this.state, wasMoved: false });
+
+					diagramEngine.clearRepaintEntities();
+					var model = this.getMouseElement(event);
+					//the canvas was selected
+					if (model === null) {
+						//is it a multiple selection
+						if (event.shiftKey) {
+							var relative = diagramEngine.getRelativePoint(event.touches[0].clientX, event.touches[0].clientY);
+							this.startFiringAction(new SelectingAction(relative.x, relative.y));
+						} else {
+							//its a drag the canvas event
+							diagramModel.clearSelection();
+							this.startFiringAction(new MoveCanvasAction(event.touches[0].clientX, event.touches[0].clientY, diagramModel));
+						}
+					} else if (model.model instanceof PortModel) {
+						//its a port element, we want to drag a link
+						if (!this.props.diagramEngine.isModelLocked(model.model)) {
+							var relative = diagramEngine.getRelativeMousePoint(event);
+							var sourcePort = model.model;
+							var link = sourcePort.createLinkModel();
+							link.setSourcePort(sourcePort);
+
+							if (link) {
+								link.removeMiddlePoints();
+								if (link.getSourcePort() !== sourcePort) {
+									link.setSourcePort(sourcePort);
+								}
+								link.setTargetPort(null);
+
+								link.getFirstPoint().updateLocation(relative);
+								link.getLastPoint().updateLocation(relative);
+
+								diagramModel.clearSelection();
+								link.getLastPoint().setSelected(true);
+								diagramModel.addLink(link);
+
+								this.startFiringAction(
+									new MoveItemsAction(event.touches[0].clientX, event.touches[0].clientY, diagramEngine)
+								);
+							}
+						} else {
+							diagramModel.clearSelection();
+						}
+					} else {
+						//its some or other element, probably want to move it
+						if (!event.shiftKey && !model.model.isSelected()) {
+							diagramModel.clearSelection();
+						}
+						model.model.setSelected(true);
+
+						this.startFiringAction(new MoveItemsAction(event.touches[0].clientX, event.touches[0].clientY, diagramEngine));
+					}
+					this.state.document.addEventListener("touchmove", this.onMouseMove);
+					this.state.document.addEventListener("touchend", this.onMouseUp);
+				}}
 			>
 				{this.state.renderedNodes && (
 					<LinkLayerWidget
@@ -539,6 +599,8 @@ export class DiagramWidget extends BaseWidget<DiagramProps, DiagramState> {
 						pointAdded={(point: PointModel, event) => {
 							this.state.document.addEventListener("mousemove", this.onMouseMove);
 							this.state.document.addEventListener("mouseup", this.onMouseUp);
+							this.state.document.addEventListener("touchmove", this.onMouseMove);
+							this.state.document.addEventListener("touchend", this.onMouseUp);
 							event.stopPropagation();
 							diagramModel.clearSelection(point);
 							this.setState({
