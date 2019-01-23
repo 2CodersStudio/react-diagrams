@@ -214,7 +214,10 @@ export class DiagramWidget extends BaseWidget<DiagramProps, DiagramState> {
 		var diagramModel = diagramEngine.getDiagramModel();
 		//select items so draw a bounding box
 		if (this.state.action instanceof SelectingAction) {
-			var relative = diagramEngine.getRelativePoint((event.clientX || event.touches[0].clientX), (event.clientY || event.touches[0].clientY));
+			var relative = diagramEngine.getRelativePoint(
+				event.clientX || event.touches[0].clientX,
+				event.clientY || event.touches[0].clientY
+			);
 
 			_.forEach(diagramModel.getNodes(), node => {
 				if ((this.state.action as SelectingAction).containsElement(node.x, node.y, diagramModel)) {
@@ -244,8 +247,8 @@ export class DiagramWidget extends BaseWidget<DiagramProps, DiagramState> {
 			this.setState({ action: this.state.action });
 			return;
 		} else if (this.state.action instanceof MoveItemsAction) {
-			let amountX = (event.clientX || event.touches[0].clientX) - this.state.action.mouseX;
-			let amountY = (event.clientY || event.touches[0].clientY) - this.state.action.mouseY;
+			let amountX = (event.clientX || event.touches[0].clientX) - this.state.action.mouseX;
+			let amountY = (event.clientY || event.touches[0].clientY) - this.state.action.mouseY;
 			let amountZoom = diagramModel.getZoomLevel() / 100;
 
 			_.forEach(this.state.action.selectionModels, model => {
@@ -290,8 +293,10 @@ export class DiagramWidget extends BaseWidget<DiagramProps, DiagramState> {
 			//translate the actual canvas
 			if (this.props.allowCanvasTranslation) {
 				diagramModel.setOffset(
-					this.state.action.initialOffsetX + ((event.clientX || event.touches[0].clientX) - this.state.action.mouseX),
-					this.state.action.initialOffsetY + ((event.clientY || event.touches[0].clientY) - this.state.action.mouseY)
+					this.state.action.initialOffsetX +
+						((event.clientX || event.touches[0].clientX) - this.state.action.mouseX),
+					this.state.action.initialOffsetY +
+						((event.clientY || event.touches[0].clientY) - this.state.action.mouseY)
 				);
 				this.fireAction();
 				this.forceUpdate();
@@ -544,12 +549,17 @@ export class DiagramWidget extends BaseWidget<DiagramProps, DiagramState> {
 					if (model === null) {
 						//is it a multiple selection
 						if (event.shiftKey) {
-							var relative = diagramEngine.getRelativePoint(event.touches[0].clientX, event.touches[0].clientY);
+							var relative = diagramEngine.getRelativePoint(
+								event.touches[0].clientX,
+								event.touches[0].clientY
+							);
 							this.startFiringAction(new SelectingAction(relative.x, relative.y));
 						} else {
 							//its a drag the canvas event
 							diagramModel.clearSelection();
-							this.startFiringAction(new MoveCanvasAction(event.touches[0].clientX, event.touches[0].clientY, diagramModel));
+							this.startFiringAction(
+								new MoveCanvasAction(event.touches[0].clientX, event.touches[0].clientY, diagramModel)
+							);
 						}
 					} else if (model.model instanceof PortModel) {
 						//its a port element, we want to drag a link
@@ -574,7 +584,11 @@ export class DiagramWidget extends BaseWidget<DiagramProps, DiagramState> {
 								diagramModel.addLink(link);
 
 								this.startFiringAction(
-									new MoveItemsAction(event.touches[0].clientX, event.touches[0].clientY, diagramEngine)
+									new MoveItemsAction(
+										event.touches[0].clientX,
+										event.touches[0].clientY,
+										diagramEngine
+									)
 								);
 							}
 						} else {
@@ -587,7 +601,9 @@ export class DiagramWidget extends BaseWidget<DiagramProps, DiagramState> {
 						}
 						model.model.setSelected(true);
 
-						this.startFiringAction(new MoveItemsAction(event.touches[0].clientX, event.touches[0].clientY, diagramEngine));
+						this.startFiringAction(
+							new MoveItemsAction(event.touches[0].clientX, event.touches[0].clientY, diagramEngine)
+						);
 					}
 					this.state.document.addEventListener("touchmove", this.onMouseMove);
 					this.state.document.addEventListener("touchend", this.onMouseUp);
