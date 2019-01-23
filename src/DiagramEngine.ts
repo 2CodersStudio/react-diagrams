@@ -580,4 +580,16 @@ export class DiagramEngine extends BaseEntity<DiagramEngineListener> {
 		this.diagramModel.setOffset(0, 0);
 		this.repaintCanvas();
 	}
+
+	zoomIn(zoom) {
+		this.diagramModel.setZoomLevel(this.diagramModel.getZoomLevel() + zoom);
+		this.diagramModel.setOffset(0, 0);
+		this.repaintCanvas();
+	}
+
+	zoomOut(zoom) {
+		this.diagramModel.setZoomLevel(this.diagramModel.getZoomLevel() - zoom);
+		this.diagramModel.setOffset(0, 0);
+		this.repaintCanvas();
+	}
 }
